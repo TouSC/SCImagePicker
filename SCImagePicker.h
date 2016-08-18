@@ -13,7 +13,8 @@
 #import <DACircularProgressView.h>
 #import "SCAlbumController.h"
 #import "TOCropViewController.h"
-#import "DoodleViewController.h"
+#import "SCImageEditViewController.h"
+#import <MBProgressHUD.h>
 typedef enum{
     SCImagePickerDeleteStyleInner = 0,
     SCImagePickerDeleteStyleButton,
@@ -23,9 +24,11 @@ typedef enum{
 
 @protocol SCImagePickerDelegate <NSObject>
 
+- (void)SCImagePicker:(SCImagePicker*)picker DidUpdateFrame:(CGRect)frame;
+
 @end
 
-@interface SCImagePicker : UIView <QBImagePickerControllerDelegate,TOCropViewControllerDelegate,UIImagePickerControllerDelegate,DoodleViewControllerDelegate,UINavigationControllerDelegate,UIAlertViewDelegate,UIActionSheetDelegate>
+@interface SCImagePicker : UIView <QBImagePickerControllerDelegate,TOCropViewControllerDelegate,UIImagePickerControllerDelegate,UINavigationControllerDelegate,UIAlertViewDelegate,UIActionSheetDelegate,SCImageEditViewControllerDelegate>
 
 @property(nonatomic,assign)NSUInteger maxCount;
 
@@ -41,6 +44,11 @@ typedef enum{
 @property(nonatomic,assign)CGFloat image_width;
 @property(nonatomic,assign)CGFloat image_height;
 
-- (void)upload:(NSString* (^)(NSString *byte))progress Complete:(void (^)(void))complete;
+@property(nonatomic,strong)NSString *default_remark;
+
+- (void)upload:(NSString* (^)(NSString *byte, NSString *name))progress Complete:(void (^)(BOOL isSuccess, NSArray *url_Arr, NSArray *remark_Arr))complete;
+- (NSString*)getFileNameWithImage:(UIImage*)image Identifier:(NSString*)identifier;
+
+- (void)addImage:(UIImage*)image AtIndex:(NSUInteger)index WithRemark:(NSString*)remark;
 
 @end

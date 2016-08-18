@@ -14,9 +14,8 @@
 #define kPromptLblHeight 40
 
 #import "DoodleViewController.h"
-#import "ChatBarContainer.h"
 
-@interface DoodleViewController () <ChatBarContainerDelegate>
+@interface DoodleViewController ()
 
 @property (strong, nonatomic)TouchDrawView *drewArea;
 
@@ -25,7 +24,6 @@
 @implementation DoodleViewController
 {
     UIImageView *doodleImgView;
-    ChatBarContainer *chat_Bar;
 }
 
 - (id)init{
@@ -40,12 +38,10 @@
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor whiteColor];
     [self setUI];
+    self.navigationController.navigationBarHidden = NO;
     self.navigationController.interactivePopGestureRecognizer.enabled = NO;
-}
-
-- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event;
-{
-    [chat_Bar.txtView resignFirstResponder];
+    UIBarButtonItem *confirm_Btn = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(clickBottomBtn:)];
+    [self.navigationItem setRightBarButtonItem:confirm_Btn];
 }
 
 - (void)setUI
@@ -54,19 +50,6 @@
     [self setTouchDrawView];
     [self setUndoAndRedoBtn];
     [self setCoverView];
-    chat_Bar = [[ChatBarContainer alloc]init];
-    chat_Bar.max_Count = 140;
-    chat_Bar.delegate = self;
-    chat_Bar.isTextRequired = NO;
-    chat_Bar.txtView.text = _remark;
-    chat_Bar.txtView.placeHolder = @"";
-    [self.view addSubview:chat_Bar];
-    [chat_Bar mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.left.equalTo(self.view.mas_left);
-        make.right.equalTo(self.view.mas_right);
-        make.bottom.equalTo(self.view.mas_bottom);
-        make.height.offset(chat_Bar.frame.size.height);
-    }];
 }
 
 - (void)chatBarDidBecomeActive;
@@ -89,7 +72,7 @@
     doodleImgView = [UIImageView new];
     [self.view addSubview:doodleImgView];
     [doodleImgView mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.edges.insets(UIEdgeInsetsMake(kNavigationBarHeight, 0, kBottomBtnHeight, 0));
+        make.edges.insets(UIEdgeInsetsMake(64, 0, 0, 0));
     }];
     doodleImgView.image = _image;
     doodleImgView.contentMode = UIViewContentModeScaleAspectFit;
@@ -101,7 +84,7 @@
     _drewArea = [[TouchDrawView alloc] init];
     [self.view addSubview:_drewArea];
     [_drewArea mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.edges.insets(UIEdgeInsetsMake(kNavigationBarHeight, 0, kBottomBtnHeight, 0));
+        make.edges.insets(UIEdgeInsetsMake(64, 0, 0, 0));
     }];
     [_drewArea setDrawColor:[UIColor redColor]];
 }
@@ -114,12 +97,12 @@
     [self.view addSubview:undoBtn];
     [undoBtn mas_makeConstraints:^(MASConstraintMaker *make) {
         make.left.offset(10);
-        make.top.offset(20+10);
+        make.top.offset(64+10);
         make.width.height.offset(30);
     }];
     undoBtn.layer.masksToBounds = YES;
     undoBtn.layer.cornerRadius = 15;
-    undoBtn.backgroundColor = [UIColor lightGrayColor];
+    [undoBtn setImage:[UIImage imageNamed:@"undo_ic"] forState:UIControlStateNormal];
     [undoBtn addTarget:self action:@selector(clickUndoBtn:) forControlEvents:UIControlEventTouchUpInside];
     
     //重做button
@@ -127,12 +110,12 @@
     [self.view addSubview:redoBtn];
     [redoBtn mas_makeConstraints:^(MASConstraintMaker *make) {
         make.right.offset(-10);
-        make.top.offset(20+10);
+        make.top.offset(64+10);
         make.width.height.offset(30);
     }];
     redoBtn.layer.masksToBounds = YES;
     redoBtn.layer.cornerRadius = 15;
-    redoBtn.backgroundColor = [UIColor lightGrayColor];
+    [redoBtn setImage:[UIImage imageNamed:@"redo_ic"] forState:UIControlStateNormal];
     [redoBtn addTarget:self action:@selector(clickRedo:) forControlEvents:UIControlEventTouchUpInside];
 }
 
@@ -149,31 +132,20 @@
     UILabel *promptLbl = [UILabel new];
     [coverView addSubview:promptLbl];
     [promptLbl mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.center.equalTo(self.view);
+        make.centerX.equalTo(self.view.mas_centerX);
+        make.centerY.equalTo(self.view.mas_centerY).offset(64/2);
         make.width.offset(120);
-        make.height.offset(30);
+        make.height.offset(40);
     }];
-    promptLbl.font = [UIFont systemFontOfSize:12];
+    promptLbl.font = [UIFont systemFontOfSize:14];
     promptLbl.text = @"点击开始绘制";
-    promptLbl.textColor = [UIColor blackColor];
+    promptLbl.textColor = [UIColor whiteColor];
     promptLbl.textAlignment = NSTextAlignmentCenter;
-    promptLbl.backgroundColor = [UIColor colorWithRed:1 green:1 blue:1 alpha:0.5];
-    promptLbl.layer.cornerRadius = 8;
+    promptLbl.backgroundColor = [UIColor blackColor];
+    promptLbl.alpha = 0.6;
+    promptLbl.layer.cornerRadius = 5;
     promptLbl.layer.masksToBounds = YES;
     [promptLbl sizeToFit];
-}
-
-- (void)setBottomBtn
-{
-    UIButton *bottomBtn = [UIButton new];
-    [self.view addSubview:bottomBtn];
-    [bottomBtn mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.left.right.bottom.offset(0);
-        make.height.offset(kBottomBtnHeight);
-    }];
-    [bottomBtn setTitle:@"完成" forState:UIControlStateNormal];
-    [bottomBtn setTitleColor:[UIColor blueColor] forState:UIControlStateNormal];
-    [bottomBtn addTarget:self action:@selector(clickBottomBtn:) forControlEvents:UIControlEventTouchUpInside];
 }
 
 //点击撤销
@@ -193,7 +165,7 @@
 {
     //doodleImgView.frame.size
     UIImage *shotScreenImg = [self shotScreenView:@[doodleImgView,_drewArea] withSize:doodleImgView.frame.size];
-    [self dismissViewControllerAnimated:YES completion:nil];
+    [self.navigationController popViewControllerAnimated:YES];
     if (_delegate && [_delegate respondsToSelector:@selector(DoodleViewController:DidFinishDrewWithImage:Remark:)])
     {
         [_delegate DoodleViewController:self DidFinishDrewWithImage:shotScreenImg Remark:_remark];
@@ -208,7 +180,7 @@
     for (UIView *view in viewArr) {
         [view.layer renderInContext:context];
     }
-    UIImage*image = UIGraphicsGetImageFromCurrentImageContext();
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     UIGraphicsBeginImageContext(size);  //size 为CGSize类型，即你所需要的图片尺寸
     return image;

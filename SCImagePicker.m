@@ -152,6 +152,10 @@
                 add_Btn.alpha = 1;
             }];
         }
+        if (_delegate && [_delegate respondsToSelector:@selector(SCImagePicker:DidUpdateFrame:)])
+        {
+            [_delegate SCImagePicker:self DidUpdateFrame:self.frame];
+        }
     }];
 }
 
@@ -182,16 +186,22 @@
         imageView.layer.borderWidth = 2.0f;
         UIButton *edit_Btn = [[UIButton alloc] initWithFrame:CGRectMake(_image_height, 0, _image_width-_image_height, _image_height)];
         edit_Btn.backgroundColor = [UIColor whiteColor];
-        [edit_Btn setTitle:remark.length?remark:@"编辑" forState:UIControlStateNormal];
-        [edit_Btn setTitleColor:[UIColor blackColor ] forState:UIControlStateNormal];
+        edit_Btn.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+        edit_Btn.contentVerticalAlignment = UIControlContentVerticalAlignmentTop;
+        edit_Btn.contentEdgeInsets = UIEdgeInsetsMake(10, 10, 0, 0);
+        edit_Btn.titleLabel.font = [UIFont systemFontOfSize:11];
+        edit_Btn.titleLabel.numberOfLines = 2;
+        edit_Btn.titleLabel.lineBreakMode = NSLineBreakByWordWrapping|NSLineBreakByTruncatingMiddle;
+        [edit_Btn setTitle:remark.length?remark:_default_remark forState:UIControlStateNormal];
+        [edit_Btn setTitleColor:[UIColor grayColor] forState:UIControlStateNormal];
         [edit_Btn addTarget:self action:@selector(clickEditBtn:) forControlEvents:UIControlEventTouchUpInside];
         [imageView addSubview:edit_Btn];
     }
     if (_deleteStyle==SCImagePickerDeleteStyleButton)
     {
-        UIButton *remove_Btn = [[UIButton alloc] initWithFrame:CGRectMake(_image_width-30, _image_height-30, 30, 30)];
+        UIButton *remove_Btn = [[UIButton alloc] initWithFrame:CGRectMake(_image_width-40, _image_height-30, 30, 30)];
         remove_Btn.contentHorizontalAlignment = UIControlContentHorizontalAlignmentRight;
-        remove_Btn.backgroundColor = [UIColor redColor];
+        [remove_Btn setImage:[UIImage imageNamed:@"delete_image_ic"] forState:UIControlStateNormal];
         [remove_Btn addTarget:self action:@selector(clickRemoveBtn:) forControlEvents:UIControlEventTouchUpInside];
         [imageView addSubview:remove_Btn];
     }
@@ -226,26 +236,29 @@
     [self.imageView_Arr[index] removeFromSuperview];
     [self.imageView_Arr removeObjectAtIndex:index];
     [self.image_Arr removeObjectAtIndex:index];
+    [self.remark_Arr removeObjectAtIndex:index];
     last_ImageView = [_imageView_Arr lastObject];
     [self layoutIfNeeded];
 }
 
 #pragma mark - ges
-- (void)upload:(NSString* (^)(NSString *byte))progress Complete:(void (^)(void))complete;
+- (void)upload:(NSString* (^)(NSString *byte, NSString *name))progress Complete:(void (^)(BOOL isSuccess, NSArray *url_Arr, NSArray *remark_Arr))complete;
 {
     DACircularProgressView *hud = [[DACircularProgressView alloc] initWithFrame:CGRectMake(0, 0, 40.0, 40.0)];
+    hud.progressTintColor = [UIColor blackColor];
     hud.center = CGPointMake([UIScreen mainScreen].bounds.size.width/2, [UIScreen mainScreen].bounds.size.height/2);
     hud.roundedCorners = YES;
     hud.trackTintColor = [UIColor clearColor];
     [[(UIViewController*)_delegate view]addSubview:hud];
     [hud setProgress:0.1 animated:YES];
     dispatch_async(dispatch_get_global_queue(0, 0), ^{
+        [self.imageURL_Arr removeAllObjects];
         for (int i=0; i<self.image_Arr.count; i++)
         {
             UIImage *image = _image_Arr[i];
             NSData *imageData = [self dataWithImage:image];
             NSString *imageDataStr = [imageData base64EncodedStringWithOptions:0];
-            NSString *url = progress(imageDataStr);
+            NSString *url = progress(imageDataStr,[self getFileNameWithImage:image Identifier:[NSString stringWithFormat:@"%d",i]]);
             if ([url isKindOfClass:[NSString class]])
             {
                 if (url.length)
@@ -259,9 +272,18 @@
             }
             dispatch_async(dispatch_get_main_queue(), ^{
                 [hud setHidden:YES];
+                MBProgressHUD *failhud = [MBProgressHUD showHUDAddedTo:[(UIViewController*)_delegate view] animated:YES];
+                failhud.labelText = @"图片上传失败，请重试";
+                failhud.userInteractionEnabled = NO;
+                failhud.mode = MBProgressHUDModeText;
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [failhud hide:YES];
+                });
             });
+            break;
         }
         dispatch_async(dispatch_get_main_queue(), ^{
+            complete(self.imageURL_Arr.count==self.image_Arr.count,self.imageURL_Arr,self.remark_Arr);
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                 [hud setHidden:YES];
             });
@@ -363,18 +385,28 @@
 
 - (void)clickEditBtn:(UIButton*)btn;
 {
-    DoodleViewController *doodle_vc = [[DoodleViewController alloc] init];
-    doodle_vc.image = _image_Arr[btn.superview.tag-101];
-    doodle_vc.delegate = self;
-    doodle_vc.remark = btn.titleLabel.text;
-    doodle_vc.view.tag = btn.superview.tag;
-    [(UIViewController*)_delegate presentViewController:doodle_vc animated:YES completion:nil];
+//    DoodleViewController *doodle_vc = [[DoodleViewController alloc] init];
+//    doodle_vc.image = _image_Arr[btn.superview.tag-101];
+//    doodle_vc.delegate = self;
+//    doodle_vc.remark = [btn.titleLabel.text isEqualToString:_default_remark]?@"":btn.titleLabel.text;
+//    doodle_vc.view.tag = btn.superview.tag;
+    SCImageEditViewController *edit_vc = [[SCImageEditViewController alloc] init];
+    edit_vc.image = _image_Arr[btn.superview.tag-101];
+    edit_vc.remark = [[btn titleLabel].text isEqualToString:_default_remark]?@"":[btn titleLabel].text;
+    edit_vc.delegate = self;
+    [[(UIViewController*)_delegate navigationController] pushViewController:edit_vc animated:YES];
+    edit_vc.view.tag = btn.superview.tag;
 }
-- (void)DoodleViewController:(DoodleViewController *)viewController DidFinishDrewWithImage:(UIImage *)image Remark:(NSString *)remark;
+//- (void)DoodleViewController:(DoodleViewController *)viewController DidFinishDrewWithImage:(UIImage *)image Remark:(NSString *)remark;
+//{
+//    [self removeImageAtIndex:viewController.view.tag-101];
+//    [self addImage:image AtIndex:viewController.view.tag-101 WithRemark:remark];
+//    [self.remark_Arr addObject:remark];
+//}
+- (void)SCImageEditViewController:(SCImageEditViewController *)viewController DidEndEdit:(UIImage *)image Remark:(NSString *)remark;
 {
     [self removeImageAtIndex:viewController.view.tag-101];
     [self addImage:image AtIndex:viewController.view.tag-101 WithRemark:remark];
-    [self.remark_Arr addObject:remark];
 }
 
 #pragma mark - UIImagePickerControllerDelegate
